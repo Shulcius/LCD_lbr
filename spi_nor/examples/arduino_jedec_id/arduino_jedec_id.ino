@@ -12,7 +12,7 @@
 
 #include "spi_nor.h"
 #include "spi_nor_port_arduino.h"
-#include "board_config.h"
+#include "le25u40cmc.h"
 
 /* === ПИНЫ МК (заполните сами) === */
 #ifndef FLASH_PIN_CS

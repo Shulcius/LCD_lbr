@@ -1,19 +1,23 @@
 /**
- * @file board_config.h
- * @brief Профиль платы/чипа «LE250U40 CMB FLASH» → LE25U40CMC.
+ * @file le25u40cmc.h
+ * @brief Пресет чипа LE25U40CMC (Onsemi/ex-Sanyo) — не конфиг пинов МК.
  *
- * ВАЖНО (по даташиту Onsemi LE25U40CMC):
- *   - Объём: 4 Mbit = 524288 байт (НЕ 4 МБ / 0x400000).
- *   - JEDEC 9Fh: 62 06 13 (часто + reserved 00).
- *   - Device ID ABh: 0x6E.
- *   - VDD: 2.3–3.6 V → на МК использовать 3.3 V, не 5 V.
- *   - SOIC-8 пины: 1=CS 2=SO 3=WP 4=GND 5=SI 6=SCK 7=HOLD 8=VDD
- *     (у многих W25Q пины 6/7 обратные — не путать клипсу!).
+ * Зачем файл: готовые константы и spi_nor_config_t, чтобы не помнить JEDEC/объём.
+ * Пины GPIO хоста задаются в порту / sketch, не здесь.
  *
- * Пины МК сюда НЕ зашиты — задайте в своём порту / sketch.
+ * Факты (даташит):
+ *   - 4 Mbit = 524288 байт (НЕ 4 МБ / 0x400000)
+ *   - JEDEC 9Fh: 62 06 13; Device ID ABh: 0x6E
+ *   - VDD 2.3–3.6 V → работать на 3.3 V
+ *   - SOIC-8: 1=CS 2=SO 3=WP 4=GND 5=SI 6=SCK 7=HOLD 8=VDD
+ *     (у многих W25Q пины 6/7 обратные)
+ *
+ * Маркер «LE250U40 CMB» ≈ этот чип (CMB → корпус CMC).
  */
-#ifndef LE250U40_CMB_BOARD_CONFIG_H
-#define LE250U40_CMB_BOARD_CONFIG_H
+#ifndef SPI_NOR_CHIP_LE25U40CMC_H
+#define SPI_NOR_CHIP_LE25U40CMC_H
+
+#include "spi_nor.h"
 
 #include <stdint.h>
 
@@ -23,8 +27,8 @@ extern "C" {
 
 #define LE25U40CMC_CAPACITY_BYTES   524288u   /* 0x80000 — 4 Mbit */
 #define LE25U40CMC_PAGE_SIZE        256u
-#define LE25U40CMC_SECTOR_SIZE      4096u     /* small sector */
-#define LE25U40CMC_BLOCK_SIZE       65536u    /* sector erase 64K */
+#define LE25U40CMC_SECTOR_SIZE      4096u
+#define LE25U40CMC_BLOCK_SIZE       65536u
 #define LE25U40CMC_ADDR_MAX         0x07FFFFu
 
 #define LE25U40CMC_JEDEC_MFR        0x62u
@@ -36,7 +40,7 @@ extern "C" {
 #define LE25U40CMC_VDD_MAX_MV       3600
 #define LE25U40CMC_VDD_NOM_MV       3300
 
-/* Номера ног корпуса SOIC-8 (не GPIO МК!) */
+/* Номера ног корпуса SOIC-8 (справка; не GPIO МК) */
 enum {
   LE25U40_PKG_PIN_CS   = 1,
   LE25U40_PKG_PIN_SO   = 2,
@@ -48,12 +52,7 @@ enum {
   LE25U40_PKG_PIN_VDD  = 8
 };
 
-/**
- * Готовый spi_nor_config_t под LE25U40CMC.
- * Подключите: spi_nor_init(&dev, &hal, &le25u40cmc_config);
- */
-#include "spi_nor.h"
-
+/** Готовый конфиг: spi_nor_init(&dev, &hal, &le25u40cmc_config); */
 static const spi_nor_config_t le25u40cmc_config = {
   .capacity_bytes  = LE25U40CMC_CAPACITY_BYTES,
   .page_size       = LE25U40CMC_PAGE_SIZE,
@@ -62,7 +61,6 @@ static const spi_nor_config_t le25u40cmc_config = {
   .busy_timeout_ms = 30000u
 };
 
-/** Проверка JEDEC после probe. */
 static inline int le25u40cmc_id_match(const spi_nor_info_t *info)
 {
   if (!info) {
@@ -77,4 +75,4 @@ static inline int le25u40cmc_id_match(const spi_nor_info_t *info)
 }
 #endif
 
-#endif /* LE250U40_CMB_BOARD_CONFIG_H */
+#endif /* SPI_NOR_CHIP_LE25U40CMC_H */

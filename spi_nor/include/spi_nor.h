@@ -6,7 +6,7 @@
  * Также узнаёт W25Q32/GD25Q32 (4 MiB) по JEDEC, но это другой target.
  * Объём: таблица известных ID / 2^capacity_id / spi_nor_config_t — без хардкода 0x400000.
  *
- * Плата LE250U40 / CMC — см. boards/le250u40_cmb/board_config.h (профиль, не ядро).
+ * Пресет чипа LE25U40CMC — см. chips/le25u40cmc.h (не пины МК; ядро от него не зависит).
  *
  * EN: Portable SPI NOR driver. No Arduino dependency in this header/source.
  */

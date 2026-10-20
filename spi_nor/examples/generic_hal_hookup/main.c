@@ -1,7 +1,7 @@
 /**
  * Пример «подключи свой HAL» для RISC-V / bare-metal.
  *
- * Соберите с: -I../../include -I../../boards/le250u40_cmb -I../../ports/generic
+ * Соберите с: -I../../include -I../../chips -I../../ports/generic
  *             ../../src/spi_nor.c ../../ports/generic/spi_nor_port_generic.c
  *
  * Сейчас platform_* в generic-порте — заглушки (spi_xfer вернёт ошибку).
@@ -11,7 +11,7 @@
 
 #include "spi_nor.h"
 #include "spi_nor_port_generic.h"
-#include "board_config.h"
+#include "le25u40cmc.h"
 
 /* Пины МК — плейсхолдеры, замените на реальные номера/маски */
 #ifndef BOARD_FLASH_CS
@@ -48,7 +48,7 @@ int main(void)
     return 1;
   }
 
-  /* Дефолт профиля LE250U40: 524288 байт, не 0x400000 */
+  /* Пресет чипа LE25U40CMC: 524288 байт, не 0x400000 */
   rc = spi_nor_init(&nor, &hal, &le25u40cmc_config);
   if (rc != SPI_NOR_OK) {
     printf("init: %s\n", spi_nor_strerror(rc));
