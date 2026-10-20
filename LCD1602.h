@@ -1,25 +1,22 @@
 /*
+  LCD 1602 (HD44780-совместимый)
+
   pinout:
     VSS       - 1     - GND
-    VCC       - 2     - 5V
-    VEE       - 3     - contrast adjustment
-    RS        - 4     - register selection (0 - instruction register, 1 - data register)
-    R/W       - 5     - READ or WRITE selection (0 - write, 1 - read)
-    E         - 6     - enable signal
-    DB0-DB7   - 7-14  - data INPUT ot OUTPUT lines (8 bits on db0-7, 4 bits on db4-7 from old to "young" bits)
-    LED "+"   - 15    - positive for LED contrast adjustment
-    LED "-"   - 16    - negative for LED contrast adjustment
-  1 icon size:
-    5x8 pixels
-  register select - cmds:
-    0x01 - clear
-    0x02 - reset cursor position to 0,0
-    0x04 - cursor direction
-    0x08 - on/of cmd for display/cursor/blinking
-    0x10 - shift cursor/display
-    0x20 - func for display/line/font
-    0x40 - setting the address in CGRAM
-    0x80 - setting the address in DDRAM
+    VCC       - 2     - 5V (некоторые модули 3.3 V — смотреть плату)
+    VEE       - 3     - contrast (подстройка контраста)
+    RS        - 4     - 0 = команда, 1 = данные
+    R/W       - 5     - 0 = запись, 1 = чтение (часто на GND)
+    E         - 6     - Enable
+    DB0-DB7   - 7-14  - данные (8-bit: все; 4-bit: DB4-DB7)
+    LED +     - 15    - подсветка +
+    LED -     - 16    - подсветка -
+
+  Символ: 5x8 (или 5x10) точек.
+
+  4-bit режим: в data_pins[0..3] передайте GPIO для DB4..DB7
+               (data_pins[4..7] не используются).
+  8-bit режим: data_pins[0..7] = DB0..DB7.
 */
 #ifndef LCD1602_H
 #define LCD1602_H
@@ -27,69 +24,107 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// ==================== ОСНОВНЫЕ КОМАНДЫ ====================
-#define LCD_CLEAR           0x01    // Очистка всего экрана
-#define LCD_HOME            0x02    // Курсор в начало (0,0)
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-// Эти команды нужно комбинировать с флагами через "|"
-// Установка направления курсора (CUR_DIR = 0x04)
-#define LCD_ENTRY_MODE      0x04  // Базовое значение
-#define LCD_ENTRY_RIGHT     0x02  // Курсор движется вправо
-#define LCD_ENTRY_LEFT      0x00  // Курсор движется влево
-#define LCD_ENTRY_SHIFT_ON  0x01  // Дисплей сдвигается
-#define LCD_ENTRY_SHIFT_OFF 0x00  // Дисплей не сдвигается
+/* ==================== ОСНОВНЫЕ КОМАНДЫ ==================== */
+#define LCD_CLEAR           0x01u
+#define LCD_HOME            0x02u
 
-// Управление дисплеем (CMD = 0x08)
-#define LCD_DISPLAY_CTRL    0x08  // Базовое значение
-#define LCD_DISPLAY_ON      0x04  // Включить дисплей
-#define LCD_DISPLAY_OFF     0x00  // Выключить дисплей
-#define LCD_CURSOR_ON       0x02  // Показать курсор
-#define LCD_CURSOR_OFF      0x00  // Скрыть курсор
-#define LCD_BLINK_ON        0x01  // Включить мигание
-#define LCD_BLINK_OFF       0x00  // Выключить мигание
+#define LCD_ENTRY_MODE      0x04u
+#define LCD_ENTRY_RIGHT     0x02u
+#define LCD_ENTRY_LEFT      0x00u
+#define LCD_ENTRY_SHIFT_ON  0x01u
+#define LCD_ENTRY_SHIFT_OFF 0x00u
 
-// Сдвиг (SHIFT = 0x10)
-#define LCD_SHIFT           0x10  // Базовое значение
-#define LCD_SHIFT_DISPLAY   0x08  // Сдвигать дисплей
-#define LCD_SHIFT_CURSOR    0x00  // Сдвигать курсор
-#define LCD_SHIFT_RIGHT     0x04  // Сдвиг вправо
-#define LCD_SHIFT_LEFT      0x00  // Сдвиг влево
+#define LCD_DISPLAY_CTRL    0x08u
+#define LCD_DISPLAY_ON      0x04u
+#define LCD_DISPLAY_OFF     0x00u
+#define LCD_CURSOR_ON       0x02u
+#define LCD_CURSOR_OFF      0x00u
+#define LCD_BLINK_ON        0x01u
+#define LCD_BLINK_OFF       0x00u
 
-// Настройка функции (FUNC = 0x20)
-#define LCD_FUNCTION_SET    0x20  // Базовое значение
-#define LCD_8BIT_MODE       0x10  // 8-битный режим
-#define LCD_4BIT_MODE       0x00  // 4-битный режим
-#define LCD_2_LINES         0x08  // 2 строки
-#define LCD_1_LINE          0x00  // 1 строка
-#define LCD_FONT_5x10       0x04  // Шрифт 5x10 точек
-#define LCD_FONT_5x8        0x00  // Шрифт 5x8 точек
+#define LCD_SHIFT           0x10u
+#define LCD_SHIFT_DISPLAY   0x08u
+#define LCD_SHIFT_CURSOR    0x00u
+#define LCD_SHIFT_RIGHT     0x04u
+#define LCD_SHIFT_LEFT      0x00u
 
-// =============== АДРЕСА ПАМЯТИ ================
-#define LCD_SET_CGRAM_ADDR  0x40  // Установить адрес CGRAM
-#define LCD_SET_DDRAM_ADDR  0x80  // Установить адрес DDRAM
+#define LCD_FUNCTION_SET    0x20u
+#define LCD_8BIT_MODE       0x10u
+#define LCD_4BIT_MODE       0x00u
+#define LCD_2_LINES         0x08u
+#define LCD_1_LINE          0x00u
+#define LCD_FONT_5x10       0x04u
+#define LCD_FONT_5x8        0x00u
 
-// ======== СТРУКТУРА СОСТОЯНИЯ ДИСПЛЕЯ =========
+#define LCD_SET_CGRAM_ADDR  0x40u
+#define LCD_SET_DDRAM_ADDR  0x80u
+
+/* ======== СОСТОЯНИЕ / КОНФИГ ========= */
 typedef struct {
-  bool display : 1;    // Дисплей включен/выключен
-  bool cursor : 1;     // Курсор виден/невиден
-  bool blink : 1;      // Мигание включено/выключено
-  uint8_t cur_pos : 7; // Позиция курсора (0-79)
+  bool display : 1;
+  bool cursor  : 1;
+  bool blink   : 1;
+  uint8_t cur_pos : 7; /* линейная позиция 0..(cols*rows-1) */
 } lcd1602_state_t;
 
-// ========== СТРУКТУРА ПИНОВ ДИСПЛЕЯ ==========
 typedef struct {
   uint8_t rs_pin;
-  uint8_t rw_pin;
+  uint8_t rw_pin;          /* если R/W на GND — всё равно укажите пин или тот же вывод, см. init */
   uint8_t e_pin;
-  uint8_t data_pins[8];
-  lcd_state_t state;
+  uint8_t data_pins[8];    /* 8-bit: DB0..DB7; 4-bit: [0..3]=DB4..DB7 */
+  uint8_t cols;
+  uint8_t rows;
+  bool    eight_bit;       /* true = 8-bit шина, false = 4-bit */
+  uint8_t display_mode;    /* кеш LCD_DISPLAY_CTRL | флаги */
+  uint8_t entry_mode;      /* кеш LCD_ENTRY_MODE | флаги */
+  lcd1602_state_t state;
 } lcd1602_t;
 
-// ===== ОСНОВНЫЕ МЕТОДЫ РАБОТЫ С ДИСПЛЕЕМ =====
+/**
+ * Инициализация пинов и контроллера HD44780.
+ * @param bit_mode  true  → 8-bit (DB0..DB7),
+ *                  false → 4-bit (data_pins[0..3] = DB4..DB7).
+ * Перед вызовом заполните rs_pin, rw_pin, e_pin, data_pins[].
+ * Если R/W аппаратно на GND — всё равно задайте rw_pin на свободный
+ * выход и библиотека будет держать его LOW, либо используйте тот же
+ * номер, что и неиспользуемый пин, подтянутый как OUTPUT LOW.
+ */
 void lcd_init(lcd1602_t *lcd, uint8_t cols, uint8_t rows, bool bit_mode);
+
 void lcd_clear(lcd1602_t *lcd);
+void lcd_home(lcd1602_t *lcd);
 void lcd_set_cursor(lcd1602_t *lcd, uint8_t col, uint8_t row);
+
 void lcd_write_char(lcd1602_t *lcd, char c);
 void lcd_write_string(lcd1602_t *lcd, const char *str);
 
+void lcd_display_on(lcd1602_t *lcd);
+void lcd_display_off(lcd1602_t *lcd);
+void lcd_cursor_on(lcd1602_t *lcd);
+void lcd_cursor_off(lcd1602_t *lcd);
+void lcd_blink_on(lcd1602_t *lcd);
+void lcd_blink_off(lcd1602_t *lcd);
+
+/** Сдвиг содержимого / курсора (комбинация LCD_SHIFT_*). */
+void lcd_scroll_left(lcd1602_t *lcd);
+void lcd_scroll_right(lcd1602_t *lcd);
+
+/**
+ * Запись своего символа в CGRAM (index 0..7),
+ * pattern — 8 строк по 5 бит (младшие биты значащие).
+ */
+void lcd_create_char(lcd1602_t *lcd, uint8_t index, const uint8_t pattern[8]);
+
+/** Низкоуровневая отправка (если нужно расширять). */
+void lcd_command(lcd1602_t *lcd, uint8_t cmd);
+void lcd_write_raw(lcd1602_t *lcd, uint8_t value);
+
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* LCD1602_H */
